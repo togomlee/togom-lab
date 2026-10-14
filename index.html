@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="북극 빙하 위 토곰 빙하연구소에서 일하는 토곰이를 만나 보세요.">
+<title>토곰 빙하연구소</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&display=swap">
+<style>
+/* Layout: full-bleed 3D glacier scene; frosted-ice panels float over it (brand top, character card corner, pose bar bottom) */
+:root{
+  --night:#0b1d3a;
+  --ink:#14304a;
+  --muted:#5a7690;
+  --frost:rgba(242,249,255,.88);
+  --frost-line:rgba(255,255,255,.75);
+  --glacier:#8cc3de;
+  --salmon:#ff8f7e;
+  --salmon-ink:#7a2a20;
+  --font-display:"Do Hyeon","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--night);color:var(--ink);font-family:var(--font-body);font-size:14px;-webkit-tap-highlight-color:transparent}
+#stage{position:fixed;inset:0;touch-action:none}
+#stage canvas{display:block;width:100%;height:100%;cursor:grab}
+#stage canvas:active{cursor:grabbing}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible{outline:2px solid var(--salmon);outline-offset:2px}
+
+.panel{background:var(--frost);border:1px solid var(--frost-line);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(8,24,48,.25)}
+
+.topbar{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;pointer-events:none}
+.topbar > *{pointer-events:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:8px 14px 8px 10px;border-radius:14px}
+.brand svg{width:26px;height:26px;flex:none}
+.brand strong{display:block;font-family:var(--font-display);font-weight:400;font-size:20px;line-height:1.1;letter-spacing:.01em}
+.brand span{display:block;font-size:10.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.top-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.chip-btn{padding:9px 13px;border-radius:12px;font-size:13px;white-space:nowrap}
+.chip-btn[aria-pressed="true"]{background:var(--salmon);color:#fff;border-color:transparent}
+
+.bubble{position:fixed;left:0;top:0;transform:translate(-50%,-100%);background:#fff;color:var(--ink);padding:9px 14px;border-radius:16px;font-size:14px;max-width:220px;text-align:center;box-shadow:0 6px 18px rgba(8,24,48,.25);pointer-events:none;white-space:normal;line-height:1.4}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border:7px solid transparent;border-bottom:0;border-top-color:#fff}
+
+.card{position:fixed;left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 86px);width:300px;max-width:calc(100% - 32px);border-radius:18px;overflow:hidden}
+.card-head{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;text-align:left}
+.avatar{width:44px;height:44px;border-radius:50%;background:#e6f1f8;flex:none;display:grid;place-items:center}
+.avatar svg{width:36px;height:36px}
+.who{flex:1;min-width:0}
+.who strong{font-family:var(--font-display);font-weight:400;font-size:21px;line-height:1}
+.who span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+.mood-chip{font-size:12px;padding:4px 9px;border-radius:999px;background:#ffe3dd;color:var(--salmon-ink);white-space:nowrap}
+.card-body{padding:0 14px 14px;display:grid;gap:10px;border-top:1px solid rgba(20,48,74,.08);padding-top:12px}
+.row{display:flex;align-items:center;gap:10px}
+.label{font-size:11px;letter-spacing:.12em;color:var(--muted);min-width:34px}
+.label em{font-style:normal;letter-spacing:0;background:#e3eef6;color:var(--muted);padding:1px 6px;border-radius:6px;margin-left:4px}
+.meter{display:flex;gap:4px}
+.meter i{width:10px;height:10px;border-radius:50%;background:#d5e3ee}
+.meter i.on{background:var(--salmon)}
+.tasks{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.tasks li{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:8px;font-size:13px}
+.tasks time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+.tasks b{font-weight:400;font-size:11px;padding:2px 7px;border-radius:6px;background:#e3eef6;color:var(--muted)}
+.tasks b.done{background:#dff3e7;color:#2b6a45}
+.tasks b.now{background:#ffe3dd;color:var(--salmon-ink)}
+.note{margin:0;font-size:12px;color:var(--muted);line-height:1.5}
+.card.collapsed .card-body,.card.collapsed .tabs{display:none}
+.card-body{max-height:min(44vh,400px);overflow:auto}
+.tabs{display:flex;gap:4px;padding:0 14px 10px}
+.tab{flex:1;padding:7px 0;border-radius:10px;font-size:13px;background:rgba(20,48,74,.06)}
+.tab[aria-selected="true"]{background:var(--ink);color:#fff}
+.panel-sec{display:grid;gap:10px}
+.skills{display:grid;gap:6px}
+.skill{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid rgba(20,48,74,.1);text-align:left}
+.skill span{font-size:14px}
+.skill small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.skill b{font-weight:400;color:var(--salmon);font-size:18px}
+.skill:disabled{opacity:.5;cursor:wait}
+.log{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.log button{width:100%;text-align:left;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:3px 8px;padding:9px 10px;border-radius:10px;background:rgba(255,255,255,.75)}
+.log .k{font-size:11px;padding:1px 6px;border-radius:6px;background:#e3eef6;color:var(--muted)}
+.log .k.shorts{background:#ffe3dd;color:var(--salmon-ink)}
+.log .t{font-size:13.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log time{grid-column:1/-1;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.empty{margin:0;font-size:13px;color:var(--muted);line-height:1.55}
+.msgs{display:flex;flex-direction:column;gap:6px;max-height:min(30vh,240px);overflow:auto;padding-right:2px}
+.msg{padding:8px 11px;border-radius:14px;font-size:13.5px;line-height:1.45;max-width:85%;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.me{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:4px}
+.msg.bear{align-self:flex-start;background:#fff;border-bottom-left-radius:4px}
+.chat-form{display:flex;gap:6px}
+.chat-form input{flex:1;min-width:0;padding:9px 12px;border-radius:12px;border:1px solid rgba(20,48,74,.18);font:inherit;font-size:16px;background:#fff;color:var(--ink)}
+.send{padding:9px 14px;border-radius:12px;background:var(--salmon);color:#fff;white-space:nowrap}
+.send:disabled{opacity:.5}
+.modal{position:fixed;inset:0;background:rgba(8,20,40,.5);display:grid;place-items:center;padding:16px;z-index:5}
+.sheet{width:min(520px,100%);max-height:80vh;overflow:auto;border-radius:18px;padding:20px;background:#f4f9fd;color:var(--ink)}
+.sheet .meta{font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.sheet h2{font-family:var(--font-display);font-weight:400;font-size:25px;line-height:1.25;margin:8px 0 12px;text-wrap:balance}
+.sheet .body{white-space:pre-wrap;line-height:1.75;font-size:14.5px;margin:0}
+.sheet-close{margin-left:auto;padding:6px 11px;border-radius:10px;background:rgba(20,48,74,.08);font-size:13px}
+
+.dock{position:fixed;left:0;right:0;bottom:0;padding:0 16px calc(env(safe-area-inset-bottom,0px) + 16px);display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.hint{font-size:12px;color:#e8f2fa;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+.poses{pointer-events:auto;display:flex;gap:4px;padding:5px;border-radius:16px}
+.poses button{padding:9px 16px;border-radius:12px;font-family:var(--font-display);font-size:17px;color:var(--ink);transition:background .2s}
+.poses button:hover{background:rgba(140,195,222,.3)}
+.poses button[aria-pressed="true"]{background:var(--ink);color:#fff}
+
+.loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--night);color:#dbe9f5;font-family:var(--font-display);font-size:22px;transition:opacity .6s}
+.loading.gone{opacity:0;pointer-events:none}
+
+@media (max-width:640px){
+  .card{left:16px;right:16px;width:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 112px)}
+  .brand span{display:none}
+  .poses button{padding:9px 13px;font-size:16px}
+}
+</style>
+</head>
+<body>
+
+
+<div id="stage" aria-label="토곰이가 사는 빙하 3D 장면"></div>
+<div class="loading" id="loading">빙하를 얼리는 중…</div>
+
+<header class="topbar">
+  <div class="brand panel">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><g stroke="#14304a" stroke-width="2" stroke-linecap="round" fill="none"><path d="M16 3v26M4.7 9.5l22.6 13M4.7 22.5l22.6-13"/><path d="M12.5 5.5 16 9l3.5-3.5M12.5 26.5 16 23l3.5 3.5"/></g></svg>
+    <div><strong>토곰 빙하연구소</strong><span>Ice floe lab · 78°N</span></div>
+  </div>
+  <div class="top-actions">
+    <button class="chip-btn panel" id="btnHome">전체 보기</button>
+    <button class="chip-btn panel" id="btnFollow" aria-pressed="false">따라가기</button>
+  </div>
+</header>
+
+<div id="bubble" class="bubble" hidden></div>
+
+<aside class="card panel" id="card">
+  <button class="card-head" id="cardToggle" aria-expanded="true" aria-controls="cardBody">
+    <span class="avatar"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="9" cy="11" r="6" fill="#f6f3ee"/><circle cx="31" cy="11" r="6" fill="#f6f3ee"/><circle cx="9" cy="11" r="3" fill="#f4c1b9"/><circle cx="31" cy="11" r="3" fill="#f4c1b9"/><circle cx="20" cy="22" r="14" fill="#f6f3ee"/><ellipse cx="20" cy="27" rx="6" ry="4.5" fill="#fff"/><circle cx="14.5" cy="20" r="1.8" fill="#111"/><circle cx="25.5" cy="20" r="1.8" fill="#111"/><ellipse cx="20" cy="25" rx="2.4" ry="1.7" fill="#111"/><path d="M20 26.5v2.2" stroke="#111" stroke-width="1"/></svg></span>
+    <span class="who"><strong>토곰이</strong><span>막내 연구원 · 빙하팀</span></span>
+    <span class="mood-chip" id="moodChip">좋음</span>
+  </button>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-status" data-tab="status" aria-selected="true">상태</button>
+    <button class="tab" role="tab" id="tab-work" data-tab="work" aria-selected="false">업무 기록</button>
+    <button class="tab" role="tab" id="tab-chat" data-tab="chat" aria-selected="false">대화</button>
+  </div>
+  <div class="card-body" id="cardBody">
+    <section class="panel-sec" data-panel="status">
+      <div class="row"><span class="label">지금</span><span id="nowText">서서 손님 맞는 중</span></div>
+      <div class="row"><span class="label">기분</span><span class="meter" id="meter"></span><span id="moodText">좋음</span></div>
+      <div class="row"><span class="label">오늘</span><span id="todayCount">업무 기록 불러오는 중</span></div>
+      <div class="label">기술</div>
+      <div class="skills">
+        <button class="skill" id="job-diary" data-job="diary"><span>연구 일지 쓰기<small>오늘 빙하에서 있었던 일을 기록해요</small></span><b>›</b></button>
+        <button class="skill" id="job-shorts" data-job="shorts"><span>숏츠 아이디어 내기<small>토곰이 주연 세로 영상 기획 3개</small></span><b>›</b></button>
+      </div>
+      <p class="note" id="capNote" hidden>토곰이의 일하기·대화 기능은 곧 열려요. 지금은 연구소를 둘러보고 업무 기록을 구경해 주세요.</p>
+    </section>
+    <section class="panel-sec" data-panel="work" hidden>
+      <ol class="log" id="log"></ol>
+      <p class="empty" id="logEmpty">아직 기록이 없어요. 상태 탭에서 기술을 눌러 첫 업무를 시켜 보세요.</p>
+    </section>
+    <section class="panel-sec" data-panel="chat" hidden>
+      <div class="msgs" id="msgs" aria-live="polite"><div class="msg bear">안녕하세요, 토곰이에요! 연구소 일이든 오늘 기분이든 편하게 물어보세요.</div></div>
+      <form class="chat-form" id="chatForm">
+        <input id="chatInput" autocomplete="off" maxlength="300" placeholder="토곰이에게 말 걸기" aria-label="토곰이에게 보낼 말">
+        <button class="send" id="chatSend" type="submit">보내기</button>
+      </form>
+    </section>
+  </div>
+</aside>
+
+<div class="modal" id="modal" hidden>
+  <article class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="meta"><span id="sheetKind"></span><time id="sheetTime"></time><button class="sheet-close" id="sheetClose">닫기</button></div>
+    <h2 id="sheetTitle"></h2>
+    <p class="body" id="sheetBody"></p>
+  </article>
+</div>
+
+<div class="dock">
+  <div class="hint">드래그로 둘러보기 · 토곰이를 눌러 보세요</div>
+  <nav class="poses panel" aria-label="토곰이 동작">
+    <button data-pose="stand" aria-pressed="true">서기</button>
+    <button data-pose="sit" aria-pressed="false">앉기</button>
+    <button data-pose="walk" aria-pressed="false">걷기</button>
+    <button data-pose="sleep" aria-pressed="false">자기</button>
+  </nav>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 400);
+const HOME_CAM = new THREE.Vector3(0, 3.6, 9.2);
+const HOME_TGT = new THREE.Vector3(0, 1.0, 0.4);
+camera.position.copy(HOME_CAM);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.target.copy(HOME_TGT);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 3;
+controls.maxDistance = 22;
+controls.maxPolarAngle = 1.45;
+controls.enablePan = false;
+
+/* ---------- helpers ---------- */
+function hash3(x,y,z){ const s=Math.sin(x*127.1+y*311.7+z*74.7)*43758.5453; return s-Math.floor(s); }
+function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h); const t=new THREE.CanvasTexture(c); return t; }
+
+/* ---------- sky ---------- */
+const sky = canvasTex(4,512,(g,w,h)=>{
+  const gr=g.createLinearGradient(0,0,0,h);
+  gr.addColorStop(0,'#0a1a36'); gr.addColorStop(.45,'#23426e'); gr.addColorStop(.7,'#7d93b8'); gr.addColorStop(.86,'#e9b8a6'); gr.addColorStop(1,'#f6d6c2');
+  g.fillStyle=gr; g.fillRect(0,0,w,h);
+});
+sky.encoding = THREE.sRGBEncoding;
+scene.background = sky;
+scene.fog = new THREE.FogExp2(0xa9b9cf, 0.016);
+
+/* aurora ring */
+const auroraMat = new THREE.ShaderMaterial({
+  transparent:true, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending, fog:false,
+  uniforms:{t:{value:0}},
+  vertexShader:'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+  fragmentShader:`varying vec2 vUv; uniform float t;
+    void main(){
+      float x=vUv.x*6.2831853;
+      float wave = sin(x*3.0 + t*0.25)*0.12 + sin(x*7.0 - t*0.4)*0.05;
+      float band = smoothstep(0.0,0.35,vUv.y-0.25+wave) * (1.0-smoothstep(0.35,1.0,vUv.y-0.25+wave));
+      float streak = 0.55+0.45*sin(x*40.0 + sin(x*5.0+t*0.3)*4.0);
+      float pulse = 0.6+0.4*sin(x*2.0 - t*0.15);
+      vec3 col = mix(vec3(0.25,1.0,0.7), vec3(0.6,0.45,1.0), smoothstep(0.4,0.9,vUv.y));
+      gl_FragColor = vec4(col, band*streak*pulse*0.55);
+    }`
+});
+const aurora = new THREE.Mesh(new THREE.CylinderGeometry(60,60,22,96,1,true), auroraMat);
+aurora.position.y = 24;
+scene.add(aurora);
+
+/* ---------- lights ---------- */
+scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x5b7a99, 0.75));
+const sun = new THREE.DirectionalLight(0xffe0cf, 1.05);
+sun.position.set(-8, 10, 6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024,1024);
+Object.assign(sun.shadow.camera,{left:-7,right:7,top:7,bottom:-7,near:1,far:40});
+sun.shadow.bias = -0.0008;
+scene.add(sun);
+const rim = new THREE.DirectionalLight(0x9fd8ff, 0.45);
+rim.position.set(6,4,-8);
+scene.add(rim);
+
+/* ---------- water ---------- */
+const water = new THREE.Mesh(new THREE.PlaneGeometry(300,300), new THREE.MeshStandardMaterial({color:0x1b3956, roughness:0.18, metalness:0.45}));
+water.rotation.x = -Math.PI/2; water.position.y = -0.25; water.receiveShadow = true;
+scene.add(water);
+
+/* ---------- ice floe ---------- */
+const iceMat = new THREE.MeshStandardMaterial({color:0xeef6fb, roughness:0.85, flatShading:true});
+const iceSide = new THREE.MeshStandardMaterial({color:0x9fd0ea, roughness:0.35, flatShading:true});
+function makeFloe(r, h, seg){
+  const geo = new THREE.CylinderGeometry(r, r*1.05, h, seg, 1);
+  const p = geo.attributes.position;
+  for(let i=0;i<p.count;i++){
+    const x=p.getX(i), y=p.getY(i), z=p.getZ(i);
+    const k = hash3(Math.round(Math.atan2(z,x)*100), 0, Math.round(r*10));
+    if(Math.hypot(x,z)>0.01){ const s=0.82+k*0.3; p.setX(i,x*s); p.setZ(i,z*s); }
+    if(y<0) p.setY(i, y - k*0.3);
+  }
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, [iceSide, iceMat, iceSide]);
+  m.receiveShadow = true;
+  return m;
+}
+const floe = makeFloe(5.4, 0.8, 15);
+floe.position.y = -0.4;
+scene.add(floe);
+// snow mounds
+[[3.2,1.6,.7],[-3.6,1.4,.55],[1.2,-3.6,.6],[-1.4,3.9,.45],[3.8,-1.2,.4]].forEach(([x,z,s])=>{
+  const m=new THREE.Mesh(new THREE.SphereGeometry(1,16,10), new THREE.MeshStandardMaterial({color:0xf7fbfe, roughness:1}));
+  m.scale.set(s*1.4,s*0.45,s); m.position.set(x,0,z); m.receiveShadow=true; m.castShadow=true; scene.add(m);
+});
+
+/* ---------- icebergs ---------- */
+const bergMat = new THREE.MeshStandardMaterial({color:0xcfe8f6, roughness:0.4, flatShading:true, emissive:0x1a3f5e, emissiveIntensity:0.15});
+function berg(x,z,sx,sy,sz,seed){
+  const g=new THREE.IcosahedronGeometry(1,1); const p=g.attributes.position;
+  for(let i=0;i<p.count;i++){
+    const x0=p.getX(i),y0=p.getY(i),z0=p.getZ(i);
+    const k=0.75+hash3(Math.round(x0*100)+seed,Math.round(y0*100),Math.round(z0*100))*0.5;
+    p.setXYZ(i,x0*k,y0*k,z0*k);
+  }
+  g.computeVertexNormals();
+  const m=new THREE.Mesh(g,bergMat); m.scale.set(sx,sy,sz); m.position.set(x,sy*0.25-0.3,z); m.rotation.y=seed; m.castShadow=true; scene.add(m); return m;
+}
+berg(-14,-18,5,7,4,1); berg(-6,-26,7,10,5,2); berg(9,-22,6,8,5,3); berg(20,-10,4,5,4,4);
+berg(-22,-4,4,6,4,5); berg(18,12,3,4,3,6); berg(-17,14,3.5,3,3,7); berg(4,-34,9,13,6,8);
+// floating chunks
+const chunks=[];
+for(let i=0;i<14;i++){
+  const a=i/14*Math.PI*2+0.3, r=7+hash3(i,2,3)*6;
+  const s=0.3+hash3(i,5,1)*0.7;
+  const g=new THREE.IcosahedronGeometry(1,0);
+  const m=new THREE.Mesh(g,iceMat); m.scale.set(s*1.4,s*0.35,s);
+  m.position.set(Math.cos(a)*r,-0.2,Math.sin(a)*r); m.rotation.y=a*3; m.castShadow=true;
+  m.userData.ph=a*5; chunks.push(m); scene.add(m);
+}
+
+/* ---------- igloo (lab) ---------- */
+const brickTex = canvasTex(256,128,(g,w,h)=>{
+  g.fillStyle='#f3f9fd'; g.fillRect(0,0,w,h);
+  g.strokeStyle='#c4d9e8'; g.lineWidth=3;
+  const rows=6, rh=h/rows;
+  for(let r=0;r<rows;r++){ g.beginPath(); g.moveTo(0,r*rh); g.lineTo(w,r*rh); g.stroke();
+    const off=(r%2)*32; for(let x=off;x<w;x+=64){ g.beginPath(); g.moveTo(x,r*rh); g.lineTo(x,(r+1)*rh); g.stroke(); } }
+});
+brickTex.wrapS=brickTex.wrapT=THREE.RepeatWrapping; brickTex.repeat.set(4,1); brickTex.encoding=THREE.sRGBEncoding;
+const igloo = new THREE.Group();
+const iglooMat = new THREE.MeshStandardMaterial({map:brickTex, roughness:0.9});
+const dome = new THREE.Mesh(new THREE.SphereGeometry(1.35,32,16,0,Math.PI*2,0,Math.PI/2), iglooMat);
+dome.castShadow=true; dome.receiveShadow=true; igloo.add(dome);
+const tunnel = new THREE.Mesh(new THREE.CylinderGeometry(0.58,0.58,1,24), iglooMat);
+tunnel.rotation.x=Math.PI/2; tunnel.position.set(0,0,1.25); tunnel.castShadow=true; igloo.add(tunnel);
+const door = new THREE.Mesh(new THREE.CircleGeometry(0.44,24), new THREE.MeshBasicMaterial({color:0x13283f}));
+door.position.set(0,0,1.76); igloo.add(door);
+const glow = new THREE.PointLight(0xffb48a, 0.9, 3.2); glow.position.set(0,0.3,2.0); igloo.add(glow);
+igloo.position.set(-2.6,0,-2.3); igloo.rotation.y=0.45;
+scene.add(igloo);
+
+// sign
+const signTex = canvasTex(256,96,(g,w,h)=>{
+  g.fillStyle='#14304a'; g.fillRect(0,0,w,h);
+  g.fillStyle='#ffffff'; g.font='bold 40px "Do Hyeon", sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+  g.fillText('토곰 연구소',w/2,h/2+2);
+});
+signTex.encoding=THREE.sRGBEncoding;
+const sign=new THREE.Group();
+const post=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1.1,8), new THREE.MeshStandardMaterial({color:0x8a6a4f}));
+post.position.y=0.55; post.castShadow=true; sign.add(post);
+const board=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.36,0.05), [0,0,0,0,0,0].map((_,i)=> i===4 ? new THREE.MeshStandardMaterial({map:signTex}) : new THREE.MeshStandardMaterial({color:0x14304a})));
+board.position.y=1.05; board.castShadow=true; sign.add(board);
+sign.position.set(-0.9,0,-0.5); sign.rotation.y=0.25;
+scene.add(sign);
+
+/* ---------- ice desk + laptop ---------- */
+const desk=new THREE.Group();
+const deskTop=new THREE.Mesh(new THREE.BoxGeometry(1.3,0.72,0.75), new THREE.MeshStandardMaterial({color:0xbfe2f3, roughness:0.15, transparent:true, opacity:0.9}));
+deskTop.position.y=0.36; deskTop.castShadow=true; deskTop.receiveShadow=true; desk.add(deskTop);
+const lapMat=new THREE.MeshStandardMaterial({color:0x2a3f55, roughness:0.4, metalness:0.4});
+const lapBase=new THREE.Mesh(new THREE.BoxGeometry(0.52,0.03,0.36), lapMat); lapBase.position.set(0,0.735,0.05); desk.add(lapBase);
+const screenTex=canvasTex(256,160,(g,w,h)=>{
+  g.fillStyle='#e9f5fc'; g.fillRect(0,0,w,h);
+  g.fillStyle='#14304a'; g.font='bold 26px "Do Hyeon", sans-serif'; g.fillText('빙하 온도 일지',18,40);
+  g.strokeStyle='#ff8f7e'; g.lineWidth=5; g.beginPath();
+  [20,70,55,90,80,110,100,95,140,120,180,100,230,115].reduce((a,v,i,arr)=>{ if(i%2) return a; const x=arr[i],y=arr[i+1]; i?g.lineTo(x,y+10):g.moveTo(x,y+10); return a; },0); g.stroke();
+});
+screenTex.encoding=THREE.sRGBEncoding;
+const lapScreen=new THREE.Mesh(new THREE.BoxGeometry(0.52,0.34,0.02), [lapMat,lapMat,lapMat,lapMat,new THREE.MeshBasicMaterial({map:screenTex}),lapMat]);
+lapScreen.position.set(0,0.92,-0.13); lapScreen.rotation.x=-0.18; desk.add(lapScreen);
+const mug=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.055,0.13,14), new THREE.MeshStandardMaterial({color:0xff8f7e})); mug.position.set(0.45,0.785,0.12); desk.add(mug);
+desk.position.set(2.5,0,-2.0); desk.rotation.y=-0.5;
+scene.add(desk);
+
+// flag
+const flag=new THREE.Group();
+const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,2.2,8), new THREE.MeshStandardMaterial({color:0xdde6ee, metalness:0.6, roughness:0.3}));
+pole.position.y=1.1; pole.castShadow=true; flag.add(pole);
+const flagGeo=new THREE.PlaneGeometry(0.75,0.45,12,4); flagGeo.translate(0.375,0,0);
+const flagCloth=new THREE.Mesh(flagGeo, new THREE.MeshStandardMaterial({color:0xff8f7e, side:THREE.DoubleSide}));
+flagCloth.position.set(0.03,1.95,0); flagCloth.castShadow=true; flag.add(flagCloth);
+const flagBase=flagGeo.attributes.position.array.slice();
+flag.position.set(4.0,0,0.6);
+scene.add(flag);
+
+/* ---------- snow ---------- */
+const flakeTex=canvasTex(32,32,(g)=>{ const gr=g.createRadialGradient(16,16,0,16,16,16); gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,32,32); });
+const SNOW=900, snowPos=new Float32Array(SNOW*3), snowVel=new Float32Array(SNOW);
+for(let i=0;i<SNOW;i++){ snowPos[i*3]=(Math.random()-.5)*44; snowPos[i*3+1]=Math.random()*18; snowPos[i*3+2]=(Math.random()-.5)*44; snowVel[i]=0.4+Math.random()*0.6; }
+const snowGeo=new THREE.BufferGeometry(); snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos,3));
+const snow=new THREE.Points(snowGeo, new THREE.PointsMaterial({size:0.12, map:flakeTex, transparent:true, depthWrite:false, opacity:0.9}));
+scene.add(snow);
+
+/* ---------- 토곰이 (fluffy bear) ---------- */
+const strandTex = canvasTex(64,64,(g,w,h)=>{
+  const img=g.createImageData(w,h);
+  for(let i=0;i<w*h;i++){ const v=Math.random()*255; img.data[i*4]=v; img.data[i*4+1]=v; img.data[i*4+2]=v; img.data[i*4+3]=255; }
+  g.putImageData(img,0,0);
+});
+strandTex.wrapS=strandTex.wrapT=THREE.RepeatWrapping; strandTex.repeat.set(9,9);
+strandTex.magFilter=THREE.NearestFilter; strandTex.minFilter=THREE.NearestFilter;
+const SHELLS=8;
+const furBase=new THREE.MeshStandardMaterial({color:0xe4ddd3, roughness:1});
+const shellMats=[];
+const inner=new THREE.Color(0xe7e0d6), tip=new THREE.Color(0xfdfcf9);
+for(let i=1;i<=SHELLS;i++){
+  const f=i/SHELLS;
+  shellMats.push(new THREE.MeshStandardMaterial({color:inner.clone().lerp(tip,f), roughness:1, alphaMap:strandTex, alphaTest:0.12+f*0.78}));
+}
+function furry(mesh,len){
+  for(let i=1;i<=SHELLS;i++){
+    const s=new THREE.Mesh(mesh.geometry, shellMats[i-1]);
+    s.scale.setScalar(1+len*i/SHELLS);
+    mesh.add(s);
+  }
+  mesh.castShadow=true;
+  return mesh;
+}
+const sph=(r)=>new THREE.SphereGeometry(r,28,20);
+const black=new THREE.MeshStandardMaterial({color:0x0e0e10, roughness:0.15, metalness:0.1});
+const pink=new THREE.MeshStandardMaterial({color:0xf2bdb4, roughness:0.9});
+
+const bear=new THREE.Group();
+const poseRoot=new THREE.Group(); poseRoot.position.y=0.8; bear.add(poseRoot);
+const content=new THREE.Group(); content.position.y=-0.8; poseRoot.add(content);
+
+const body=furry(new THREE.Mesh(sph(0.55),furBase),0.13); body.position.set(0,0.82,0); body.scale.set(1,1.02,0.94); content.add(body);
+const tail=furry(new THREE.Mesh(sph(0.11),furBase),0.5); tail.position.set(0,0.6,-0.5); content.add(tail);
+
+const headG=new THREE.Group(); headG.position.set(0,1.3,0); content.add(headG);
+const head=furry(new THREE.Mesh(sph(0.5),furBase),0.13); head.position.set(0,0.32,0); headG.add(head);
+[-1,1].forEach(sd=>{
+  const ear=furry(new THREE.Mesh(sph(0.15),furBase),0.25); ear.position.set(sd*0.33,0.68,-0.04); ear.scale.set(1,1,0.75); headG.add(ear);
+  const earIn=new THREE.Mesh(sph(0.085),pink); earIn.position.set(sd*0.33,0.67,0.07); earIn.scale.set(1,1,0.45); headG.add(earIn);
+});
+const muzzle=furry(new THREE.Mesh(sph(0.17),new THREE.MeshStandardMaterial({color:0xf3eee6,roughness:1})),0.06); muzzle.position.set(0,0.2,0.4); muzzle.scale.set(1.2,0.85,0.8); headG.add(muzzle);
+const nose=new THREE.Mesh(sph(0.06),black); nose.position.set(0,0.255,0.55); nose.scale.set(1.35,0.9,0.8); headG.add(nose);
+const mouth=new THREE.Mesh(new THREE.BoxGeometry(0.012,0.06,0.012),black); mouth.position.set(0,0.185,0.548); headG.add(mouth);
+const eyes=[];
+[-1,1].forEach(sd=>{
+  const eg=new THREE.Group(); eg.position.set(sd*0.17,0.4,0.47); headG.add(eg);
+  const e=new THREE.Mesh(sph(0.058),black); eg.add(e);
+  const hl=new THREE.Mesh(sph(0.016),new THREE.MeshBasicMaterial({color:0xffffff})); hl.position.set(0.02,0.022,0.045); eg.add(hl);
+  eyes.push(eg);
+});
+
+const arms=[], legs=[];
+[-1,1].forEach(sd=>{
+  const ap=new THREE.Group(); ap.position.set(sd*0.44,1.15,0.06); content.add(ap);
+  const arm=furry(new THREE.Mesh(sph(1),furBase),0.09); arm.scale.set(0.15,0.29,0.15); arm.position.set(0,-0.23,0); ap.add(arm);
+  arms.push(ap);
+  const lp=new THREE.Group(); lp.position.set(sd*0.24,0.45,0.02); content.add(lp);
+  const leg=furry(new THREE.Mesh(sph(1),furBase),0.09); leg.scale.set(0.2,0.25,0.2); leg.position.set(0,-0.2,0); lp.add(leg);
+  const foot=furry(new THREE.Mesh(sph(1),furBase),0.08); foot.scale.set(0.19,0.12,0.23); foot.position.set(0,-0.37,0.05); lp.add(foot);
+  legs.push(lp);
+});
+scene.add(bear);
+
+/* ---------- pose system ---------- */
+const POSES={
+  stand:{rootY:.8,rx:0,rz:0,leg:0,armX:0,armZ:.22,eye:1},
+  sit:{rootY:.54,rx:-.12,rz:0,leg:-1.45,armX:-.55,armZ:.12,eye:1},
+  walk:{rootY:.8,rx:.06,rz:0,leg:0,armX:0,armZ:.18,eye:1},
+  sleep:{rootY:.56,rx:0,rz:1.5,leg:-.35,armX:-.7,armZ:.1,eye:.1},
+  work:{rootY:.8,rx:.08,rz:0,leg:0,armX:-1.15,armZ:.12,eye:1}
+};
+const INFO={
+  stand:{now:'서서 손님 맞는 중', mood:'좋음', lvl:4},
+  sit:{now:'앉아서 쉬는 중', mood:'평온', lvl:3},
+  walk:{now:'빙하 순찰 중', mood:'신남', lvl:5},
+  sleep:{now:'낮잠 자는 중', mood:'졸림', lvl:2},
+  work:{now:'책상에서 일하는 중', mood:'집중', lvl:4}
+};
+const LINES={
+  stand:['안녕! 나는 토곰이야.','오늘도 빙하 위로 출근 완료!','얼음 온도 재러 가 볼까?','점심 물고기가 기다려져…'],
+  sit:['잠깐 쉬는 중이에요.','보고서는… 조금 이따 쓸게요.','여기 앉으면 오로라가 잘 보여요.'],
+  walk:['순찰 중! 얼음 균열 확인 중이에요.','뽀득뽀득, 눈 밟는 소리 좋다.','바람이 시원해요!'],
+  sleep:['음냐… 5분만 더…','쿨… 쿨…'],
+  work:['지금 열심히 쓰는 중이에요!','타닥타닥… 조금만 기다려 주세요.']
+};
+const WORK={x:2.09,z:-1.25,face:Math.atan2(0.41,-0.75)};
+const MOVE_SPEED=0.9;
+function moveToward(x,z,dt){
+  const dx=x-bear.position.x, dz=z-bear.position.z, d=Math.hypot(dx,dz);
+  if(d>0.02){ const s=Math.min(d,MOVE_SPEED*dt); bear.position.x+=dx/d*s; bear.position.z+=dz/d*s; }
+  return {d,dx,dz};
+}
+let pose='stand';
+const cur=Object.assign({},POSES.stand);
+const PATH_C=new THREE.Vector3(0,0,0.6), PATH_R=2.2;
+let pathA=0;
+bear.position.set(PATH_C.x+Math.sin(pathA)*PATH_R,0,PATH_C.z+Math.cos(pathA)*PATH_R);
+
+/* ---------- UI ---------- */
+const meter=document.getElementById('meter');
+for(let i=0;i<5;i++) meter.appendChild(document.createElement('i'));
+const card=document.getElementById('card'), cardToggle=document.getElementById('cardToggle');
+function setCard(open){ card.classList.toggle('collapsed',!open); cardToggle.setAttribute('aria-expanded',String(open)); }
+setCard(innerWidth>640);
+cardToggle.addEventListener('click',()=>setCard(card.classList.contains('collapsed')));
+function updateInfo(){
+  const inf=INFO[pose];
+  document.getElementById('nowText').textContent=inf.now;
+  document.getElementById('moodText').textContent=inf.mood;
+  document.getElementById('moodChip').textContent=inf.mood;
+  [...meter.children].forEach((d,i)=>d.classList.toggle('on',i<inf.lvl));
+}
+updateInfo();
+
+const bubble=document.getElementById('bubble');
+let bubbleTimer=null, lineIdx={stand:0,sit:0,walk:0,sleep:0,work:0};
+function say(text,ms){
+  bubble.textContent=text; bubble.hidden=false;
+  clearTimeout(bubbleTimer);
+  if(ms) bubbleTimer=setTimeout(()=>{ bubble.hidden = pose!=='sleep'; if(pose==='sleep') bubble.textContent='Zzz…'; },ms);
+}
+function speak(){ const arr=LINES[pose]; say(arr[lineIdx[pose]++ % arr.length], 3200); nodT=0.6; }
+
+function setPose(p,quiet){
+  pose=p;
+  if(p==='walk') pathA=Math.atan2(bear.position.x-PATH_C.x, bear.position.z-PATH_C.z);
+  document.querySelectorAll('.poses button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.pose===p)));
+  updateInfo();
+  if(quiet) return;
+  if(p==='sleep') say('Zzz…'); else speak();
+}
+document.querySelectorAll('.poses button').forEach(b=>b.addEventListener('click',()=>{ if(busy){ say('일 끝나면 할게요!',2000); return; } setPose(b.dataset.pose); }));
+
+/* tabs */
+const tabs=[...document.querySelectorAll('.tab')];
+function showTab(name){
+  tabs.forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===name)));
+  document.querySelectorAll('[data-panel]').forEach(s=>s.hidden=s.dataset.panel!==name);
+  if(name==='chat') msgs.scrollTop=msgs.scrollHeight;
+}
+tabs.forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.tab)));
+
+/* ---------- 실제 업무: Claude 연결 ---------- */
+const KIND={diary:'연구 일지', shorts:'숏츠 기획', note:'메모'};
+const PERSONA="너는 '토곰이'야. 북극 빙하 위 '토곰 빙하연구소'에서 일하는 막내 연구원이고, 복슬복슬한 하얀 곰인형 모습의 아기 북극곰이야. "+
+  "말투는 다정하고 귀여운 해요체이고, 가끔 눈이나 얼음 비유를 써. 이모지는 쓰지 마. "+
+  "연구소에는 이글루 연구실, 얼음 책상 위 노트북, 주황 깃발이 있고 밤하늘엔 오로라가 떠. 좋아하는 건 물고기 점심과 낮잠이야.";
+const kstDay=(d)=>new Date(d).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'});
+const fmtTime=(d)=>new Date(d).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+let db=null, sampler=null, logDocs=[], busy=false;
+const logEl=document.getElementById('log'), logEmpty=document.getElementById('logEmpty'), todayCount=document.getElementById('todayCount');
+const jobBtns=[...document.querySelectorAll('.skill')];
+
+function renderLog(){
+  logEl.textContent='';
+  logDocs.forEach(e=>{
+    const li=document.createElement('li'), b=document.createElement('button');
+    const k=document.createElement('span'); k.className='k '+(e.kind||''); k.textContent=KIND[e.kind]||'기록';
+    const t=document.createElement('span'); t.className='t'; t.textContent=e.title||'(제목 없음)';
+    const tm=document.createElement('time'); tm.textContent=(e.at?fmtTime(e.at):'')+(e.by?' · '+e.by:'');
+    b.append(k,t,tm); b.addEventListener('click',()=>openReport(e));
+    li.appendChild(b); logEl.appendChild(li);
+  });
+  logEmpty.hidden=logDocs.length>0;
+  const today=kstDay(Date.now());
+  const n=logDocs.filter(e=>e.at&&kstDay(e.at)===today).length;
+  todayCount.textContent=n?`업무 ${n}건 완료`:'아직 오늘 한 업무가 없어요';
+}
+
+const modal=document.getElementById('modal');
+function openReport(e){
+  document.getElementById('sheetKind').textContent=KIND[e.kind]||'기록';
+  document.getElementById('sheetTime').textContent=e.at?fmtTime(e.at):'';
+  document.getElementById('sheetTitle').textContent=e.title||'';
+  document.getElementById('sheetBody').textContent=e.body||'';
+  modal.hidden=false; document.getElementById('sheetClose').focus();
+}
+function closeReport(){ modal.hidden=true; }
+document.getElementById('sheetClose').addEventListener('click',closeReport);
+modal.addEventListener('click',e=>{ if(e.target===modal) closeReport(); });
+addEventListener('keydown',e=>{ if(e.key==='Escape') closeReport(); });
+
+function jobPrompt(kind){
+  const today=kstDay(Date.now());
+  const recent=logDocs.slice(0,6).map(e=>'- '+(e.title||'')).join('\n')||'(없음)';
+  const fmt='\n\n반드시 JSON 하나로만 답해: {"title": "20자 이내 제목", "body": "본문"}';
+  if(kind==='shorts') return PERSONA+`\n\n오늘은 ${today}(한국 시간)야. 토곰이가 주인공인 15~30초 세로 숏츠 아이디어 3개를 기획해 줘. 실제 하얀 곰인형으로 집에서 촬영할 수 있어야 해. `+
+    `각 아이디어는 "1. 제목" 줄, "장면:" 한두 문장, "대사:" 한 줄로 쓰고 아이디어 사이엔 빈 줄을 넣어. 최근 기록과 겹치지 않게 해.\n최근 기록:\n${recent}`+fmt;
+  return PERSONA+`\n\n오늘은 ${today}(한국 시간)야. 토곰이의 오늘 연구 일지를 써 줘. 빙하 관찰 한 가지(재미있는 가상 측정값 포함), 연구소에서 있었던 소소한 일 한 가지, 마지막 줄에 "내일 할 일:" 한 줄. `+
+    `5~7문장, 최근 기록과 겹치지 않게.\n최근 기록:\n${recent}`+fmt;
+}
+
+async function runJob(kind){
+  if(busy||!sampler) return;
+  busy=true; jobBtns.forEach(b=>b.disabled=true);
+  setPose('work',true);
+  document.getElementById('nowText').textContent=kind==='shorts'?'숏츠 아이디어 짜는 중…':'연구 일지 쓰는 중…';
+  say('책상으로 가서 일할게요!',2600);
+  try{
+    const r=await sampler.json(jobPrompt(kind),{modelTier:'default'});
+    if(!r||typeof r.title!=='string'||typeof r.body!=='string') throw {code:'bad_output'};
+    const entry={kind,title:r.title.slice(0,80),body:r.body.slice(0,4000),at:new Date().toISOString(),by:'토곰이'};
+    let saved=false;
+    if(db){ try{ await db.collection('worklog').add(entry); saved=true; }catch(_){ saved=false; } }
+    if(!saved){ logDocs.unshift(entry); renderLog(); }
+    say(saved?'다 했어요! 업무 기록에 올려 뒀어요.':'다 했어요! 이번 결과는 이 화면에서만 볼 수 있어요.',3800);
+    openReport(entry);
+  }catch(e){
+    const code=e&&e.code;
+    if(code==='not_granted'){ say('허락을 받아야 일할 수 있어요.',3500); }
+    else if(code==='rate_limited'){ say('잠깐 쉬었다 할게요. 조금 뒤에 다시 시켜 주세요.',4000); }
+    else { say('앗, 일하다 실수했어요. 한 번 더 시켜 주세요.',4000); }
+  }finally{
+    busy=false; jobBtns.forEach(b=>b.disabled=!sampler);
+    setPose('stand',true);
+  }
+}
+jobBtns.forEach(b=>b.addEventListener('click',()=>runJob(b.dataset.job)));
+
+/* chat */
+const msgs=document.getElementById('msgs'), chatForm=document.getElementById('chatForm'), chatInput=document.getElementById('chatInput'), chatSend=document.getElementById('chatSend');
+const history=[];
+function addMsg(who,text){ const d=document.createElement('div'); d.className='msg '+who; d.textContent=text; msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d; }
+chatForm.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const text=chatInput.value.trim(); if(!text||!sampler||chatSend.disabled) return;
+  chatInput.value=''; addMsg('me',text); history.push({role:'user',content:text});
+  while(history.length>12) history.shift();
+  if(history[0].role!=='user') history.shift();
+  const recent=logDocs.slice(0,5).map(x=>'- '+(KIND[x.kind]||'기록')+': '+x.title).join('\n')||'(아직 없음)';
+  const ctx=PERSONA+`\n지금 너는 '${INFO[pose].now}' 상태야. 최근 업무 기록:\n${recent}\n\n방문자와 대화해. 2~3문장으로 짧게 답하고, 모르는 실제 사실은 지어내지 마.\n\n방문자: `;
+  const input=history.map((m,i)=>i===0?{role:'user',content:ctx+m.content}:m);
+  const out=addMsg('bear','…'); chatSend.disabled=true;
+  try{
+    const r=await sampler(input,{cache:false,modelTier:'quick',onText:u=>{ out.textContent=u.text; msgs.scrollTop=msgs.scrollHeight; }});
+    out.textContent=r.text; history.push({role:'assistant',content:r.text});
+    say(r.text.length>60?r.text.slice(0,58)+'…':r.text,4500); nodT=0.6;
+  }catch(err){
+    history.pop();
+    out.textContent=err&&err.code==='rate_limited'?'조금 쉬었다 이야기해요. 잠시 뒤에 다시 말 걸어 주세요.':'앗, 말을 놓쳤어요. 다시 한번 말해 주세요.';
+  }finally{ chatSend.disabled=false; }
+});
+
+(async()=>{
+  if(!window.claude||!window.claude.use){ noCap(); return; }
+  const [d,s]=await Promise.all([claude.use('db').catch(()=>null), claude.use('sample').catch(()=>null)]);
+  db=d; sampler=s;
+  if(!sampler) noCap();
+  if(db){
+    db.collection('worklog').orderBy('at','desc').limit(30).onSnapshot(
+      snap=>{ logDocs=snap.docs.map(x=>Object.assign({id:x.id},x.data())); renderLog(); },
+      ()=>{ todayCount.textContent='업무 기록을 불러오지 못했어요'; });
+  } else renderLog();
+})();
+function noCap(){
+  document.getElementById('capNote').hidden=false;
+  jobBtns.forEach(b=>b.disabled=true);
+  chatInput.disabled=true; chatSend.disabled=true; chatInput.placeholder='대화 기능 준비 중이에요';
+  renderLog();
+}
+
+let follow=false, flying=false;
+const btnFollow=document.getElementById('btnFollow');
+btnFollow.addEventListener('click',()=>{ follow=!follow; flying=false; btnFollow.setAttribute('aria-pressed',String(follow)); });
+document.getElementById('btnHome').addEventListener('click',()=>{ follow=false; btnFollow.setAttribute('aria-pressed','false'); flying=true; });
+
+/* tap on bear */
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
+let downX=0, downY=0;
+renderer.domElement.addEventListener('pointerdown',e=>{ downX=e.clientX; downY=e.clientY; flying=false; });
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(Math.hypot(e.clientX-downX,e.clientY-downY)>6) return;
+  const r=renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(ndc,camera);
+  if(ray.intersectObject(bear,true).length){ speak(); setCard(true); }
+});
+
+/* ---------- loop ---------- */
+const clock=new THREE.Clock();
+let t=0, blinkNext=2.5, blinkT=0, nodT=0;
+const tmp=new THREE.Vector3(), headW=new THREE.Vector3();
+function lerpAngle(a,b,k){ const d=((b-a+Math.PI*3)%(Math.PI*2))-Math.PI; return a+d*k; }
+
+function frame(){
+  const dt=Math.min(clock.getDelta(),0.05); t+=dt;
+  const k=1-Math.exp(-dt*6);
+  const tg=POSES[pose];
+  for(const key in tg) cur[key]+= (tg[key]-cur[key])*k;
+
+  // walking path
+  let sw=0, moving=false, typing=0;
+  if(pose==='walk'){
+    const m=moveToward(PATH_C.x+Math.sin(pathA)*PATH_R, PATH_C.z+Math.cos(pathA)*PATH_R, dt);
+    if(m.d<0.3) pathA+=dt*0.36;
+    if(m.d>0.02) bear.rotation.y=lerpAngle(bear.rotation.y,Math.atan2(m.dx,m.dz),k);
+    moving=true;
+  } else if(pose==='work'){
+    const m=moveToward(WORK.x,WORK.z,dt);
+    moving=m.d>0.05;
+    bear.rotation.y=lerpAngle(bear.rotation.y, moving?Math.atan2(m.dx,m.dz):WORK.face, k);
+    if(!moving) typing=Math.sin(t*14)*0.12;
+  } else if(pose!=='sleep'){
+    const face=Math.atan2(camera.position.x-bear.position.x, camera.position.z-bear.position.z);
+    bear.rotation.y=lerpAngle(bear.rotation.y,face,k*0.5);
+  }
+  if(moving) sw=Math.sin(t*8)*0.6;
+  poseRoot.position.y=cur.rootY+(moving?Math.abs(Math.sin(t*8))*0.05:0);
+  poseRoot.rotation.x=cur.rx; poseRoot.rotation.z=cur.rz;
+  legs[0].rotation.x=cur.leg+sw; legs[1].rotation.x=cur.leg-sw;
+  arms[0].rotation.x=cur.armX-sw*0.5+typing; arms[1].rotation.x=cur.armX+sw*0.5-typing;
+  arms[0].rotation.z=-cur.armZ; arms[1].rotation.z=cur.armZ;
+  const breath=1+Math.sin(t*(pose==='sleep'?1.4:2.2))*0.018;
+  body.scale.set(breath,1.02*breath,0.94*breath);
+  nodT=Math.max(0,nodT-dt);
+  headG.rotation.z=Math.sin(t*0.9)*0.06*(pose==='sleep'?0:1);
+  headG.rotation.x=Math.sin(nodT/0.6*Math.PI)*0.18 + (pose==='sit'?0.06:0);
+
+  // blink
+  blinkNext-=dt; if(blinkNext<=0){ blinkT=0.14; blinkNext=2.5+Math.random()*3; }
+  blinkT=Math.max(0,blinkT-dt);
+  const ey=blinkT>0?0.12:cur.eye;
+  eyes.forEach(e=>e.scale.y=ey);
+
+  // environment motion
+  auroraMat.uniforms.t.value=t;
+  aurora.rotation.y=t*0.01;
+  chunks.forEach(c=>{ c.position.y=-0.22+Math.sin(t*0.8+c.userData.ph)*0.04; c.rotation.z=Math.sin(t*0.6+c.userData.ph)*0.04; });
+  const fp=flagGeo.attributes.position;
+  for(let i=0;i<fp.count;i++){ const x=flagBase[i*3]; fp.setZ(i,Math.sin(x*6-t*4)*0.06*x); }
+  fp.needsUpdate=true;
+  for(let i=0;i<SNOW;i++){
+    snowPos[i*3+1]-=snowVel[i]*dt; snowPos[i*3]+=Math.sin(t+i)*0.15*dt;
+    if(snowPos[i*3+1]<-0.2) snowPos[i*3+1]=18;
+  }
+  snowGeo.attributes.position.needsUpdate=true;
+
+  // camera
+  if(follow){
+    tmp.copy(bear.position); tmp.y=1.0;
+    const before=controls.target.clone();
+    controls.target.lerp(tmp,0.08);
+    camera.position.add(controls.target.clone().sub(before));
+  } else if(flying){
+    camera.position.lerp(HOME_CAM,0.07); controls.target.lerp(HOME_TGT,0.07);
+    if(camera.position.distanceTo(HOME_CAM)<0.02) flying=false;
+  }
+  controls.update();
+
+  // bubble position
+  if(!bubble.hidden){
+    head.getWorldPosition(headW); headW.y+=0.75;
+    headW.project(camera);
+    const vis=headW.z<1;
+    bubble.style.left=((headW.x+1)/2*innerWidth)+'px';
+    bubble.style.top=((1-headW.y)/2*innerHeight)+'px';
+    bubble.style.visibility=vis?'visible':'hidden';
+  }
+
+  renderer.render(scene,camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(()=>{ frame(); document.getElementById('loading').classList.add('gone'); setTimeout(()=>say('안녕! 나는 토곰이야.',3500),700); });
+
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+})();
+</script>
+
+</body>
+</html>
